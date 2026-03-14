@@ -2,6 +2,9 @@ from fastapi import APIRouter
 
 router = APIRouter()
 
+# Local dictrionary to store theoretical files
+files_db = {}        # {file_id: {"name": str, "user_id": int, "description": str, "content": str}}
+file_id_counter = 1
 
 @router.get("")
 async def files_get() -> dict[str, str]:
