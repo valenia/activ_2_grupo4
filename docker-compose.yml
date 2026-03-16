@@ -5,6 +5,8 @@ services:
     build:
       context: .
       target: carlemany-backend-base
+      #change to dev to see more logs
+      #target: carlemany-backend-dev
     image: carlemany-backend-base:latest  # add this to tag the image
     volumes:
       - type: bind
