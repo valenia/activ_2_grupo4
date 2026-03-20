@@ -8,7 +8,7 @@ from app.files.domain.exceptions import (
 from app.files.domain.files_service import FilesService
 from app.files.domain.schemas import CreateFileRequest, UploadFileContentRequest
 
-router = APIRouter(prefix="/files", tags=["files"])
+router = APIRouter(tags=["files"])
 
 
 def get_current_owner_external_id(auth: str = Header(..., alias="Auth")):
