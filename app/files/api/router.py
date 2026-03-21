@@ -6,7 +6,11 @@ from app.files.domain.exceptions import (
     UnauthorizedFileAccessError,
 )
 from app.files.domain.files_service import FilesService
-from app.files.domain.schemas import CreateFileRequest, UploadFileContentRequest
+from app.files.domain.schemas import (
+    CreateFileRequest,
+    UploadFileContentRequest,
+    MergeFilesRequest,
+)
 
 router = APIRouter(tags=["files"])
 
@@ -14,7 +18,6 @@ router = APIRouter(tags=["files"])
 def get_current_owner_external_id(auth: str = Header(..., alias="Auth")):
     if not auth:
         raise HTTPException(status_code=401, detail="Missing Auth header")
-
     return 1
 
 
@@ -50,7 +53,6 @@ async def create_file(
         description=request.description,
         mime_type=request.mime_type,
     )
-
     return {"id": file_obj.id}
 
 
@@ -110,3 +112,22 @@ async def delete_file(
     except UnauthorizedFileAccessError:
         raise HTTPException(status_code=403, detail="Forbidden")
 
+
+@router.post("/merge")
+async def merge_files(
+    request: MergeFilesRequest,
+    service: FilesService = Depends(get_files_service),
+    owner_external_id: int = Depends(get_current_owner_external_id),
+):
+    try:
+        file_obj = await service.merge_files(
+            owner_external_id=owner_external_id,
+            file_ids=request.file_ids,
+            filename=request.filename,
+            description=request.description,
+        )
+        return {"id": file_obj.id, "message": "Files merged"}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="File not found")
+    except UnauthorizedFileAccessError:
+        raise HTTPException(status_code=403, detail="Forbidden")

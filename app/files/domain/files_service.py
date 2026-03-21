@@ -51,3 +51,29 @@ class FilesService:
     async def delete_file(self, owner_external_id: int, file_id: int):
         file_obj = await self.get_file(owner_external_id, file_id)
         await self.repository.delete(file_obj)
+
+    async def merge_files(
+        self,
+        owner_external_id: int,
+        file_ids: list[int],
+        filename: str,
+        description: str | None,
+    ):
+        merged_parts = []
+
+        for file_id in file_ids:
+            file_obj = await self.get_file(owner_external_id, file_id)
+            merged_parts.append(file_obj.content or "")
+
+        merged_content = "\n".join(merged_parts)
+
+        new_file = await self.repository.create_file(
+            owner_external_id=owner_external_id,
+            filename=filename,
+            description=description,
+            mime_type="text/plain",
+        )
+
+        new_file.content = merged_content
+        await self.repository.save(new_file)
+        return new_file
