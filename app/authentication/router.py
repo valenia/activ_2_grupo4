@@ -5,6 +5,8 @@ from typing import Optional
 from fastapi import APIRouter, Body, Header, HTTPException, status
 from pydantic import BaseModel
 
+from app.authentication.models import UserDB
+
 router = APIRouter(tags=["Authentication"])
 
 
@@ -33,8 +35,8 @@ class IntrospectOutput(BaseModel):
     address: Optional[str] = None
 
 
-# Local dictionary to store users and sessions
-users_db: dict[str, UserBO] = {}
+""" Local dictionary to store users and sessions
+users_db: dict[str, UserBO] = {} no longer in use"""
 sessions_db: dict[str, str] = {}
 
 
@@ -99,20 +101,43 @@ async def healthcheck() -> dict[str, str]:
         },
     },
 )
-async def register(input: RegisterInput = Body()) -> dict[str, str]:
-    inner_object = UserBO(
-        username=input.username,
-        email=input.email,
-        address=input.address,
-        hashed_password=hash_pass(input.password),
-    )
+async def register(input: RegisterInput = Body()) -> dict:
+    try:
+        inner_object = UserBO(
+            username=input.username,
+            email=input.email,
+            address=input.address,
+            hashed_password=hash_pass(input.password),
+        )
 
-    if inner_object.email not in users_db:
-        users_db[inner_object.email] = inner_object
-    else:
-        raise HTTPException(status_code=409, detail="Email already registered")
+        if await UserDB.filter(email=inner_object.email).exists():
+            raise HTTPException(status_code=409, detail="Email already registered")
+        if await UserDB.filter(username=inner_object.username).exists():
+            raise HTTPException(status_code=409, detail="Username already registered")
 
-    return {"status": "ok"}
+
+        user_db = await UserDB.create(
+            username=inner_object.username,
+            email=inner_object.email,
+            address=inner_object.address,
+            hashed_password=inner_object.hashed_password,
+        )
+        return {"user_db.id = ": user_db.id}
+    
+    except Exception as e:
+        print("REGISTER ERROR:", repr(e))
+        raise
+
+
+def UserNotFoundException(Exception):
+    pass
+
+
+async def get_user(email: str):
+    user_db = await UserDB.get_or_none(email=email)
+    if user_db is None:
+        raise UserNotFoundException
+    return user_db
 
 
 @router.post(
@@ -175,10 +200,12 @@ async def register(input: RegisterInput = Body()) -> dict[str, str]:
     },
 )
 async def login(input: LoginInput = Body()) -> dict[str, str]:
-    if input.email not in users_db:
+    try:
+        user_db = await get_user(input.email)
+    except UserNotFoundException:
         raise HTTPException(status_code=404, detail="Email not registered")
 
-    if hash_pass(input.password) != users_db[input.email].hashed_password:
+    if hash_pass(input.password) != user_db.hashed_password:
         raise HTTPException(status_code=401, detail="Incorrect password")
 
     token = str(uuid.uuid4())
@@ -277,8 +304,9 @@ async def checkToken(auth: str = Header()) -> IntrospectOutput:
         raise HTTPException(status_code=401, detail="Incorrect Token")
 
     current_email = sessions_db[auth]
-    current_user = users_db[current_email]
+    try:
+        user_db = await get_user(current_email)
+    except UserNotFoundException:
+        raise HTTPException(status_code=404, detail="Email not registered")
 
-    return IntrospectOutput(
-        username=current_user.username, email=current_email, address=current_user.address
-    )
+    return IntrospectOutput(username=user_db.username, email=user_db.email, address=user_db.address)
