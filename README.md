@@ -6,18 +6,36 @@ This project implements a complete HTTP API for a file storage system with user 
 
 The project follows **Hexagonal Architecture** and **SOLID principles**:
 
+```
 app/
-├── authentication/ # Authentication module
-│ ├── api/ # FastAPI routers (entry points)
-│ ├── domain/ # Business logic
-│ │ ├── bo/ # Business Objects (entities)
-│ │ ├── controllers/ # Use cases (separate per endpoint)
-│ │ ├── services/ # Domain services (hashing, tokens)
-│ │ └── persistences/ # Repository interfaces & exceptions
-│ ├── persistence/ # Infrastructure (PostgreSQL implementation)
-│ ├── dependency_injection/# Singleton containers
-│ └── models.py # Tortoise ORM models
-└── files/ # Files module (same structure)
+├── authentication/
+│   ├── api/
+│   │   └── router.py
+│   ├── domain/
+│   │   ├── bo/              # RegisterInput, LoginInput, IntrospectOutput, UserBO
+│   │   ├── controllers/     # Register, Login, Logout, Introspect controllers
+│   │   ├── services/        # HashingPasswordService
+│   │   └── persistences/    # Exceptions, repository interfaces
+│   ├── persistence/
+│   │   └── user_repository.py
+│   ├── dependency_injection/
+│   │   └── container.py
+│   └── models.py
+│
+└── files/
+    ├── api/
+    │   └── router.py
+    ├── domain/
+    │   ├── bo/              # FileCreateInput, FileContentInput, MergeInput, FileDetailDesc
+    │   ├── controllers/     # Create, List, Upload, Get, Delete, Merge controllers
+    │   ├── services/        # FilesService
+    │   └── persistences/    # Exceptions
+    ├── persistence/
+    │   └── files_repository.py
+    ├── dependency_injection/
+    │   └── container.py
+    └── models.py
+```
 
 ### --Authentication API--
 - `POST /auth/register` - Register new users (passwords hashed with SHA-256)
