@@ -2,6 +2,23 @@
 
 This project implements a complete HTTP API for a file storage system with user authentication. Built with FastAPI and containerized with Docker
 
+## Architecture
+
+The project follows **Hexagonal Architecture** and **SOLID principles**:
+
+app/
+├── authentication/ # Authentication module
+│ ├── api/ # FastAPI routers (entry points)
+│ ├── domain/ # Business logic
+│ │ ├── bo/ # Business Objects (entities)
+│ │ ├── controllers/ # Use cases (separate per endpoint)
+│ │ ├── services/ # Domain services (hashing, tokens)
+│ │ └── persistences/ # Repository interfaces & exceptions
+│ ├── persistence/ # Infrastructure (PostgreSQL implementation)
+│ ├── dependency_injection/# Singleton containers
+│ └── models.py # Tortoise ORM models
+└── files/ # Files module (same structure)
+
 ### --Authentication API--
 - `POST /auth/register` - Register new users (passwords hashed with SHA-256)
 - `POST /auth/login` - Authenticate and receive session token (UUID v4)
@@ -24,6 +41,8 @@ Swagger UI: http://localhost:8000/docs
 
 # Requirements
 
+## Prod
+
 - fastapi==0.100.1
 - pypdf==6.8.0
 - python-multipart==0.0.9
@@ -33,6 +52,14 @@ Swagger UI: http://localhost:8000/docs
 - aerich==0.6.3
 - tortoise-orm==0.19.3
 - asyncpg==0.28.0
+
+## Dev
+- -r ./base.txt
+- black==24.1.0
+- ruff==0.1.14
+- pytest
+- pytest-cov
+- pytest-asyncio
 
 ## Authors
 
