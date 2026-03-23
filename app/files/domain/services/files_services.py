@@ -1,4 +1,4 @@
-from app.files.domain.exceptions import (
+from app.files.domain.persistences.exceptions import (
     FileNotFoundError,
     UnauthorizedFileAccessError,
 )

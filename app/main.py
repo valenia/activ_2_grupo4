@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from tortoise.contrib.fastapi import register_tortoise
 
-from app.authentication.router import router as authentication_router
+from app.authentication.api.router import router as authentication_router
 from app.database import DATABASE_URL, models
-from app.files.router import router as files_router
+from app.files.api.router import router as files_router
 
 app = FastAPI()
 

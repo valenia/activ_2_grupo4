@@ -1,19 +1,22 @@
-import asyncio
 import base64
+
 import pytest
 import pytest_asyncio
 from pypdf import PdfWriter
-
-from app.files import router as files_router
 from tortoise import Tortoise
+
+from app.files.api import router as files_router
+
 
 def _create_pdf_base64() -> str:
     writer = PdfWriter()
     writer.add_blank_page(width=100, height=100)
     from io import BytesIO
+
     output = BytesIO()
     writer.write(output)
     return base64.b64encode(output.getvalue()).decode("utf-8")
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
@@ -21,6 +24,7 @@ async def setup_db():
     await Tortoise.generate_schemas()
     yield
     await Tortoise.close_connections()
+
 
 @pytest.mark.asyncio
 async def test_create_and_list_files_for_owner() -> None:
@@ -43,6 +47,7 @@ async def test_create_and_list_files_for_owner() -> None:
     files_for_user_b = await files_router.files_get(auth="user-b")
     assert files_for_user_b == []
 
+
 @pytest.mark.asyncio
 async def test_upload_content_and_get_file_detail() -> None:
     created = await files_router.files_post(
@@ -54,15 +59,14 @@ async def test_upload_content_and_get_file_detail() -> None:
     raw_content = b"hello"
     upload_response = await files_router.files_id_post(
         file_id,
-        files_router.FileContentInput(
-            content_base64=base64.b64encode(raw_content).decode("utf-8")
-        ),
+        files_router.FileContentInput(content_base64=base64.b64encode(raw_content).decode("utf-8")),
         auth="token-user-1",
     )
     assert upload_response["status"] == "ok"
 
     detail_response = await files_router.files_id_get(file_id, auth="token-user-1")
     assert detail_response.content_base64 == base64.b64encode(raw_content).decode("utf-8")
+
 
 @pytest.mark.asyncio
 async def test_delete_file() -> None:
@@ -78,6 +82,7 @@ async def test_delete_file() -> None:
     with pytest.raises(files_router.HTTPException) as exc:
         await files_router.files_id_get(file_id, auth="token-user-1")
     assert exc.value.status_code == 404
+
 
 @pytest.mark.asyncio
 async def test_merge_two_pdf_files() -> None:
@@ -123,8 +128,11 @@ async def test_merge_two_pdf_files() -> None:
     merged_id = merge_response.id
 
     merged_detail = await files_router.files_id_get(merged_id, auth="token-user-1")
-    assert merged_detail.content_type == "text/plain" # Or application/pdf based on service module hardcoded "text/plain"
+    assert (
+        merged_detail.content_type == "text/plain"
+    )  # Or application/pdf based on service module hardcoded "text/plain"
     assert merged_detail.has_content is True
+
 
 @pytest.mark.asyncio
 async def test_missing_auth_header_returns_401() -> None:
