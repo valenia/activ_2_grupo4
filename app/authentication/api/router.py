@@ -1,48 +1,16 @@
-import hashlib
-import uuid
-from typing import Optional
+from fastapi import APIRouter, Body, Header, status
 
-from fastapi import APIRouter, Body, Header, HTTPException, status
-from pydantic import BaseModel
-
-from app.authentication.models import UserDB
+from app.authentication.dependency_injection.container import (
+    get_introspect_controller,
+    get_login_controller,
+    get_logout_controller,
+    get_register_controller,
+)
+from app.authentication.domain.bo.introspect_output import IntrospectOutput
+from app.authentication.domain.bo.login_input import LoginInput
+from app.authentication.domain.bo.register_input import RegisterInput
 
 router = APIRouter(tags=["Authentication"])
-
-
-class RegisterInput(BaseModel):
-    username: str
-    email: str
-    address: Optional[str] = None
-    password: str
-
-
-class UserBO(BaseModel):
-    username: str
-    email: str
-    address: Optional[str] = None
-    hashed_password: str
-
-
-class LoginInput(BaseModel):
-    email: str
-    password: str
-
-
-class IntrospectOutput(BaseModel):
-    username: str
-    email: str
-    address: Optional[str] = None
-
-
-""" Local dictionary to store users and sessions
-users_db: dict[str, UserBO] = {} no longer in use"""
-sessions_db: dict[str, str] = {}
-
-
-def hash_pass(password: str) -> str:
-    # Simple SHA-256 hash for demonstration purposes only
-    return hashlib.sha256(password.encode()).hexdigest()
 
 
 @router.get("/healthcheck")
@@ -101,43 +69,9 @@ async def healthcheck() -> dict[str, str]:
         },
     },
 )
-async def register(input: RegisterInput = Body()) -> dict:
-    try:
-        inner_object = UserBO(
-            username=input.username,
-            email=input.email,
-            address=input.address,
-            hashed_password=hash_pass(input.password),
-        )
-
-        if await UserDB.filter(email=inner_object.email).exists():
-            raise HTTPException(status_code=409, detail="Email already registered")
-        if await UserDB.filter(username=inner_object.username).exists():
-            raise HTTPException(status_code=409, detail="Username already registered")
-
-
-        user_db = await UserDB.create(
-            username=inner_object.username,
-            email=inner_object.email,
-            address=inner_object.address,
-            hashed_password=inner_object.hashed_password,
-        )
-        return {"user_db.id = ": user_db.id}
-    
-    except Exception as e:
-        print("REGISTER ERROR:", repr(e))
-        raise
-
-
-def UserNotFoundException(Exception):
-    pass
-
-
-async def get_user(email: str):
-    user_db = await UserDB.get_or_none(email=email)
-    if user_db is None:
-        raise UserNotFoundException
-    return user_db
+async def register(input_data: RegisterInput = Body()):
+    controller = get_register_controller()
+    return await controller.execute(input_data)
 
 
 @router.post(
@@ -199,20 +133,9 @@ async def get_user(email: str):
         },
     },
 )
-async def login(input: LoginInput = Body()) -> dict[str, str]:
-    try:
-        user_db = await get_user(input.email)
-    except UserNotFoundException:
-        raise HTTPException(status_code=404, detail="Email not registered")
-
-    if hash_pass(input.password) != user_db.hashed_password:
-        raise HTTPException(status_code=401, detail="Incorrect password")
-
-    token = str(uuid.uuid4())
-    while token in sessions_db:
-        token = str(uuid.uuid4())
-    sessions_db[token] = input.email
-    return {"auth": token}
+async def login(input_data: LoginInput = Body()):
+    controller = get_login_controller()
+    return await controller.execute(input_data)
 
 
 @router.post(
@@ -245,12 +168,9 @@ async def login(input: LoginInput = Body()) -> dict[str, str]:
         },
     },
 )
-async def logout(auth: str = Header()) -> dict[str, str]:
-    if auth not in sessions_db:
-        raise HTTPException(status_code=401, detail="Incorrect Token")
-
-    del sessions_db[auth]
-    return {"status": "ok"}
+async def logout(auth: str = Header(..., alias="Auth")):
+    controller = get_logout_controller()
+    return await controller.execute(auth)
 
 
 @router.get(
@@ -299,14 +219,6 @@ async def logout(auth: str = Header()) -> dict[str, str]:
         },
     },
 )
-async def checkToken(auth: str = Header()) -> IntrospectOutput:
-    if auth not in sessions_db:
-        raise HTTPException(status_code=401, detail="Incorrect Token")
-
-    current_email = sessions_db[auth]
-    try:
-        user_db = await get_user(current_email)
-    except UserNotFoundException:
-        raise HTTPException(status_code=404, detail="Email not registered")
-
-    return IntrospectOutput(username=user_db.username, email=user_db.email, address=user_db.address)
+async def introspect(auth: str = Header(..., alias="Auth")):
+    controller = get_introspect_controller()
+    return await controller.execute(auth)

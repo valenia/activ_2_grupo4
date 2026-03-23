@@ -3,3 +3,4 @@ black==24.1.0
 ruff==0.1.14
 pytest
 pytest-cov
+pytest-asyncio

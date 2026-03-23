@@ -3,8 +3,8 @@ from typing import Optional
 from pydantic import BaseModel
 
 
-class UserBO(BaseModel):
+class RegisterInput(BaseModel):
     username: str
     email: str
     address: Optional[str] = None
-    hashed_password: str
+    password: str
